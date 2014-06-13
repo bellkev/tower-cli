@@ -108,58 +108,9 @@ def get_config_value(p, section, key, default):
 def get_config_default(p, key, defaults, section='general'):
     return get_config_value(p, section, key, defaults[key])
 
-def connect(options):
-    
-    config_file = get_config_parser()
 
-    if type(options) != dict:
-        options = dict(
-            username = options.username,
-            password = options.password,
-            server   = options.server
-        )
-
-    defaults = dict(
-        username = "admin",
-        password = "password",
-        server   = "http://127.0.0.1"
-    )
-
-
-    if config_file:
-        defaults['username'] = get_config_default(
-            config_file, 'username', defaults
-        )
-        defaults['password'] = get_config_default(
-            config_file, 'password', defaults
-        )
-        defaults['server'] = get_config_default(
-            config_file, 'server', defaults
-        )
-
-    username = options.get("username", defaults["username"])
-    password = options.get("password", defaults["password"])
-    server   = options.get("server",   defaults["server"])
-    if username is None:
-        username = defaults['username']
-    if password is None:
-        password = defaults['password']
-    if server is None:
-        server = defaults['server']
-
-    # Setup urllib2 for basic password authentication.
-    password_mgr = urllib2.HTTPPasswordMgrWithDefaultRealm()
-    password_mgr.add_password(None, server, username, password)
-    handler = urllib2.HTTPBasicAuthHandler(password_mgr)
-    opener = urllib2.build_opener(handler)
-    urllib2.install_opener(opener)
-
-    conn = Connection(server)
-    try:
-        conn.get('/api/v1/')
-    except Exception, e:
-        raise BaseException(str(e))
-    return conn
-
-def dump(data):
+def dump(data=None, **kwargs):
+    """Dump the given data to a string."""
+    data = data or {}
+    data.update(kwargs)
     return json.dumps(data, indent=4, sort_keys=True)

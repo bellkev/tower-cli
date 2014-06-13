@@ -14,8 +14,8 @@
 # limitations under the License.
 
 # TODO: add a plugin loader sometime
-from commands.VersionCommand import VersionCommand
-from commands.JobLaunchCommand import JobLaunchCommand
+# from commands.VersionCommand import VersionCommand
+# from commands.JobLaunchCommand import JobLaunchCommand
 
 import sys
 
@@ -37,8 +37,8 @@ class TowerCli:
         """ all available commands to the screen """
 
         for name in self.get_command_names():
-            print name
-        print ""
+            print(name)
+        print("")
 
     def get_command_names(self):
         """ get the names of all the commands """

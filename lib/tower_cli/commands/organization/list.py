@@ -1,5 +1,5 @@
-# Copyright 2013, AnsibleWorks Inc.
-# Michael DeHaan <michael@ansibleworks.com>
+# Copyright 2014, Ansible, Inc.
+# Luke Sneeringer <lsneeringer@ansible.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,14 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import exceptions
 
-class BaseCommand(object):
+from tower_cli.commands import BaseCommand
 
-    def __init__(self, toplevel):
-        self.toplevel = toplevel
-        self.name = "BASE-COMMAND"
 
-    def run(self, args):
-        raise exceptions.NotImplementedError()
-
+class Command(BaseCommand):
+    """Provide a list of organizations, restricted by what the authenticating
+    user is able to view.
+    """
+    

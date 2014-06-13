@@ -1,77 +1,87 @@
-tower-cli
-=======
+## Welcome to tower-cli
 
-This is a command line tool for Ansible Tower.  
+**tower-cli** is a command line tool for Ansible Tower. It allows Tower
+commands to be easily run from the Unix command-line.
 
-About Tower
-=========
 
-Tower is a GUI and REST interface for Ansible that supercharges it by adding RBAC,
-centralized logging, autoscaling/provisioning callbacks, graphical inventory
-editing, and more.
+### About Tower
+
+Tower is a GUI and REST interface for Ansible that supercharges it by adding
+RBAC, centralized logging, autoscaling/provisioning callbacks, graphical
+inventory editing, and more.
 
 See http://ansible.com/tower for more details.  
 
-Tower is free to use for up to 10 nodes, and you can purchase a license for more at http://ansible.com/ansible-pricing.
+Tower is free to use for up to 10 nodes, and you can purchase a license for
+more at http://ansible.com/ansible-pricing.
 
-Capabilities
-============
+
+### Capabilities
 
 You can use this command line tool to send commands to the Tower API.
 
-For instance, you might use this tool with Jenkins, cron, or in-house software to trigger remote execution of Ansible playbook runs.
+For instance, you might use this tool with Jenkins, cron, or in-house
+software to trigger remote execution of Ansible playbook runs.
 
-This tool is designed to be pluggable and will be expanded over time.
 
-Installation
-============
+### Installation
 
-Packages will be coming soon.
+Install _tower-cli_ using pip:
 
-From a git checkout:
-  
-    make install
-    tower-cli --help
+```bash
+$ pip install tower-cli
+```
 
-Usage
-=====
 
-All commands take a username, password, and server parameter.  These values
-can also be set in a ~/.tower_cli.cfg file as follows, which is recommended for
-batch usage.  If the ~/.tower_cli.cfg is not found, the config file will also
-be looked for in /etc/awx/tower_cli.cfg.
+### Configuration
 
-    [general]
-    username=admin
-    password=password
-    server=http://127.0.0.1
+Configuration can be set in several places, and follows the following
+precedence, from least to greatest:
+
+  * internal defaults
+  * `/etc/awx/tower_cli.cfg`
+  * `~/.tower_cli.cfg`
+  * command line paramaters
+
+A configuration file is a simple file with keys and values, separated by
+`:` or `=`:
+
+```ini
+host: tower.example.com
+username: admin
+password: p4ssw0rd
+```
+
+### Usage
 
 CLI invocation looks like this:
 
-    # list subcommands
-    tower-cli --help
-    
-    # run a command (no config file)
-    tower-cli version --username admin --password password --server http://172.16.177.238
-  
-    # run a command (config file)
-    tower-cli version
+```
+# list subcommands
+tower-cli --help
 
-Here is an example of launching a job template to run an ansible playbook. The system will prompt for any parameters
-set to 'ASK' in Tower, so be sure all of this information is filled in if you are using this
-from a system like Jenkins or cron.  All we need to specify is the template ID.
+# run a command (no config file)
+tower-cli version --username admin --password password --server tower.example.com
 
-    tower-cli joblaunch --template 5
+# run a command (config file)
+tower-cli version
+```
 
-License
-=======
+Here is an example of launching a job template to run an Ansible playbook.
 
-While Tower is commercial software, tower-cli is an open source project and we want
-to encourage contributions to it.  Specfically, this CLI project is licensed under the
-Apache2 license.  You may do what you like with it, but we definitely welcome
-pull requests!
+As a note, the system will prompt for any parameters set to `ASK` in Tower,
+so be sure all of this information is filled in if you are using this from a
+system like Jenkins or cron.  All we need to specify is the template ID.
+
+```
+tower-cli job launch --template 5
+```
+
+### License
+
+While Tower is commercial software, _tower-cli_ is an open source project,
+and we encorage contributions.  Specfically, this CLI project is licensed
+under the Apache license.
 
 Michael DeHaan
 (C) 2014, Ansible, Inc.
-
-

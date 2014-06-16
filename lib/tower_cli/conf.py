@@ -129,7 +129,7 @@ class Settings(object):
         # Run through each of the parsers and check for a value. Whenever
         # we actually find a value, try to determine the correct type for it
         # and cache and return a value of that type.
-        parsers = (self._global, self._user, self._runtime)
+        parsers = (self._runtime, self._user, self._global)
         for parser in parsers:
             # Get the value from this parser; if it's None, then this
             # key isn't present and we move on to the next one.

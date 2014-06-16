@@ -1,5 +1,4 @@
-# Copyright 2013-2014, Ansible, Inc.
-# Michael DeHaan <michael@ansible.com>
+# Copyright 2014, Ansible, Inc.
 # Luke Sneeringer <lsneeringer@ansible.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,8 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-class BaseCommand(object):
-    """A skeleton command that serves as a superclass for actual commands
-    that do something.
-    """
+import json
 
+from click import echo, secho
+
+
+def echo_json(obj, indent=2, sort_keys=False, **kwargs):
+    """Echo a JSON object using `click.echo`."""
+    return echo(json.dumps(obj, indent=indent, sort_keys=False), **kwargs)
+
+
+def secho_json(obj, indent=2, sort_keys=False, **kwargs):
+    """Echo a JSON object using `click.secho`."""
+    return secho(json.dumps(obj, indent=indent, sort_keys=False), **kwargs)

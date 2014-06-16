@@ -46,7 +46,7 @@ precedence, from least to greatest:
 A configuration file is a simple file with keys and values, separated by
 `:` or `=`:
 
-```ini
+```yaml
 host: tower.example.com
 username: admin
 password: p4ssw0rd

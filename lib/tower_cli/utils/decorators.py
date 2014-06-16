@@ -13,12 +13,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from click.decorators import _param_memo as add_param
 
-from tower_cli.commands import BaseCommand
 
+def use_parameters(source_command, exclude=()):
+    """Copy the parameters from one `click` command function to another.
 
-class Command(BaseCommand):
-    """Provide a list of organizations, restricted by what the authenticating
-    user is able to view.
+    This command iterates over each member of the `params` list on the source
+    function and appends it to the destination function.
     """
-    
+    def decorator(dest_command):
+        for param in source_command.params[::-1]:
+            if param.name not in exclude:
+                add_param(dest_command, param)
+        return dest_command
+    return decorator

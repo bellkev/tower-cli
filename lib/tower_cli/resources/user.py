@@ -17,12 +17,6 @@ from tower_cli import models
 
 
 class Resource(models.Resource):
-    """A resource representing users within Ansible Tower.
-
-    Users are the sole authentication unit within the Ansible Tower system
-    (as of this writing), and are required for anyone to do anything within
-    Tower.
-    """
     cli_help = 'Manage users within Ansible Tower.'
     endpoint = '/users/'
 

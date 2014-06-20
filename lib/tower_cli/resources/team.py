@@ -17,11 +17,6 @@ from tower_cli import models
 
 
 class Resource(models.Resource):
-    """A resource representing teams within Ansible Tower.
-
-    Teams are groups of users which are granted specific permissions within
-    Ansible Tower.
-    """
     cli_help = 'Manage teams within Ansible Tower.'
     endpoint = '/teams/'
 

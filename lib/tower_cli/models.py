@@ -163,10 +163,13 @@ class Resource(six.with_metaclass(ResourceMeta)):
             """A subcommand that implements all command methods on the
             Resource.
             """
-            def __init__(self, resource):
+            def __init__(self, resource, *args, **kwargs):
                 self.resource = resource
                 self.resource_name = resource.__module__.split('.')[-1]
-                super(Subcommand, self).__init__()
+                super(Subcommand, self).__init__(*args,
+                    help=self.resource.cli_help,
+                    **kwargs
+                )
 
             def list_commands(self, ctx):
                 """Return a list of all methods decorated with the

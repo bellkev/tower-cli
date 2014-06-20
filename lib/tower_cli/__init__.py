@@ -13,4 +13,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import absolute_import, unicode_literals
+import importlib
+
+
 __version__ = open('VERSION', 'r').read().strip()
+
+
+def get_resource(name):
+    """Return an instance of the requested Resource class.
+
+    Since all of the resource classes are named `Resource`, this provides
+    a slightly cleaner interface for using these classes via. importing rather
+    than through the CLI.
+    """
+    module = importlib.import_module('tower_cli.resources.%s' % name)
+    return module.Resource()

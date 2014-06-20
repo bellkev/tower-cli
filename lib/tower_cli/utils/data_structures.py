@@ -13,4 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__version__ = open('VERSION', 'r').read().strip()
+import collections
+
+
+class OrderedDict(collections.OrderedDict):
+    """OrderedDict subclass that nonetheless uses the basic dictionary
+    __repr__ method.
+    """
+    def __repr__(self):
+        """Print a repr that resembles dict's repr, but preserves
+        key order.
+        """
+        return '{' + ', '.join(['%r: %r' % (k, v)
+                                for k, v in self.items()]) + '}'

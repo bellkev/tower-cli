@@ -32,27 +32,6 @@ class TowerCLIError(click.ClickException):
                     fg=self.fg, bg=self.bg, bold=self.bold)
 
 
-class AuthError(TowerCLIError):
-    """An exception class for reporting when a request failed due to an
-    authorization failure.
-    """
-    exit_code = 16
-
-
-class NotFound(TowerCLIError):
-    """An exception class for reporting when a request went through without
-    incident, but the requested content could not be found.
-    """
-    exit_code = 4
-
-
-class MultipleResults(TowerCLIError):
-    """An exception class for reporting when a request that expected one
-    and exactly one result got more than that.
-    """
-    exit_code = 5
-
-
 class UsageError(TowerCLIError):
     """An exception class for reporting usage errors.
 
@@ -60,3 +39,54 @@ class UsageError(TowerCLIError):
     than following the erstwhile "standard" of using 64).
     """
     exit_code = 2
+
+
+class BadRequest(TowerCLIError):
+    """An exception class for reporting unexpected error codes from Ansible
+    Tower such that 400 <= code < 500.
+
+    In theory, we should never, ever get these.
+    """
+    exit_code = 40
+
+
+class AuthError(TowerCLIError):
+    """An exception class for reporting when a request failed due to an
+    authorization failure.
+    """
+    exit_code = 41
+
+
+class Forbidden(TowerCLIError):
+    """An exception class for reporting when a user doesn't have permission
+    to do something.
+    """
+    exit_code = 43
+
+
+class NotFound(TowerCLIError):
+    """An exception class for reporting when a request went through without
+    incident, but the requested content could not be found.
+    """
+    exit_code = 44
+
+
+class MultipleResults(TowerCLIError):
+    """An exception class for reporting when a request that expected one
+    and exactly one result got more than that.
+    """
+    exit_code = 49
+
+
+class ServerError(TowerCLIError):
+    """An exception class for reporting server-side errors which are expected
+    to be ephemeral.
+    """
+    exit_code = 50
+
+
+class Found(TowerCLIError):
+    """An exception class for when a record already exists, and we were
+    explicitly told that it shouldn't.
+    """
+    exit_code = 60

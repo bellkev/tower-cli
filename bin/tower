@@ -35,22 +35,40 @@ class TowerCLI(click.MultiCommand):
         """Return a list of commands present in the commands folder, but
         not subcommands.
         """
-        answer = []
-        for filename in os.listdir('%s/lib/tower_cli/commands/' % whereami):
-            if filename.endswith('.py') and not filename.startswith('_'):
-                answer.append(filename[:-3])
+        answer = set()
+        locations = ('commands', 'resources')
+        for loc in locations:
+            path = '%s/lib/tower_cli/%s/' % (whereami, loc)
+            for filename in os.listdir(path):
+                if filename.endswith('.py') and not filename.startswith('_'):
+                    answer.add(filename[:-3])
         return sorted(answer)
 
     def get_command(self, ctx, name):
         """Given a command identified by its name, import the appropriate
         module and return the decorated command.
+
+        Resources are automatically commands, but if both a resource and
+        a command are defined, the command takes precedence.
         """
+        # First, attempt to get a basic command from `tower_cli.commands`.
         try:
             module = importlib.import_module('tower_cli.commands.%s' % name)
             return getattr(module, name)
         except ImportError:
-            click.secho('No such command: %s.' % name, fg='red', bold=True)
-            sys.exit(2)
+            pass
+
+        # No command was found; try to get a resource.
+        try:
+            module = importlib.import_module('tower_cli.resources.%s' % name)
+            resource = module.Resource()
+            return resource.as_command()
+        except ImportError:
+            pass
+
+        # Okay, we weren't able to find a command.        
+        click.secho('No such command: %s.' % name, fg='red', bold=True)
+        sys.exit(2)
 
 
 if __name__ == '__main__':

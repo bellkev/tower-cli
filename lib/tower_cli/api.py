@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import collections
 import functools
 import json
 
@@ -21,7 +20,7 @@ from requests.sessions import Session
 from requests.models import Response
 
 from tower_cli.conf import settings
-from tower_cli.utils import exceptions as exc
+from tower_cli.utils import data_structures, exceptions as exc
 
 
 class Client(Session):
@@ -48,29 +47,6 @@ class Client(Session):
         if '://' not in host:
             host = 'https://%s' % host.strip('/')
         self.prefix = '%s/api/v1/' % host.rstrip('/')
-
-    def get_one(self, url, *args, **kwargs):
-        """Make a GET request that is intended to return one and exactly one
-        result, and complain if it returns zero or 2+.
-        """
-        # Make the GET request.
-        r = self.get(url, *args, **kwargs)
-        resp = r.json()
-
-        # Did we get zero results back?
-        # If so, this is an error, and we need to complain.
-        if resp['count'] == 0:
-            raise exc.NotFound('The requested object could not be found.')
-
-        # Did we get more than one result back?
-        # If so, this is also an error, and we need to complain.
-        if resp['count'] >= 2:
-            raise exc.MultipleResults('Expected one result, got %d. Tighten '
-                                      'your criteria or use `list`.' %
-                                      resp['count'])
-
-        # Done; return the response.
-        return r
 
     @functools.wraps(Session.request)
     def request(self, method, url, *args, **kwargs):
@@ -99,10 +75,34 @@ class Client(Session):
         # Call the superclass method.
         r = super(Client, self).request(method, url, *args, **kwargs)
 
+        # Sanity check: Did the server send back some kind of internal error?
+        # If so, bubble this up.
+        if r.status_code >= 500:
+            raise exc.ServerError('The Tower server sent back a server error. '
+                                  'Please try again later.')
+
         # Sanity check: Did we fail to authenticate properly?
         # If so, fail out now; this is always a failure.
         if r.status_code == 401:
             raise exc.AuthError('Invalid Tower authentication credentials.')
+
+        # Sanity check: Did we get a forbidden response, which means that
+        # the user isn't allowed to do this? Report that.
+        if r.status_code == 403:
+            raise exc.Forbidden("You don't have permission to do that.")
+
+        # Sanity check: Did we get a 404 response?
+        # Requests with primary keys will return a 404 if there is no response,
+        # and we want to consistently trap these.
+        if r.status_code == 404:
+            raise exc.NotFound('The requested object could not be found.')
+
+        # Sanity check: Did we get some other kind of error?
+        # If so, write an appropriate error message.
+        if r.status_code >= 400:
+            raise exc.BadRequest('The Tower server claims it was sent a bad '
+                                 'request. Please file a bug report in the '
+                                 'Tower CLI project.')
 
         # Django REST Framework intelligently prints API keys in the
         # order that they are defined in the models and serializer.
@@ -125,7 +125,7 @@ class APIResponse(Response):
     changes).
     """
     def json(self, **kwargs):
-        kwargs.setdefault('object_pairs_hook', collections.OrderedDict)
+        kwargs.setdefault('object_pairs_hook', data_structures.OrderedDict)
         return super(APIResponse, self).json(**kwargs)
 
 

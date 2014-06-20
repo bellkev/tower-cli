@@ -13,10 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from tower_cli.models import Resource, Field
+from tower_cli import models
 
 
-class User(Resource):
+class Resource(models.Resource):
     """A model representing users within Ansible Tower.
 
     Users are the sole authentication unit within the Ansible Tower system
@@ -25,9 +25,8 @@ class User(Resource):
     """
     endpoint = '/users/'
 
-    username = Field(unique=True)
-    email = Field(unique=True)
-    first_name = Field(required=False)
-    last_name = Field(required=False)
-    is_superuser = Field(type=bool)
-
+    username = models.Field(unique=True)
+    email = models.Field(unique=True)
+    first_name = models.Field(required=False)
+    last_name = models.Field(required=False)
+    is_superuser = models.Field(type=bool)

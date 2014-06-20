@@ -40,15 +40,17 @@ class Field(object):
     This class tracks whether a field is unique, filterable, read-only, etc.
     """
     def __init__(self, type=six.text_type, default=None, filterable=True,
-                       unique=False, read_only=False, required=True):
+                       password=False, read_only=False, required=True,
+                       unique=False):
         # Save properties of this field.
         self.name = ''
         self.type = type
         self.default = default
         self.filterable = filterable
-        self.unique = unique
+        self.password = password
         self.read_only = read_only
         self.required = required
+        self.unique = unique
 
         # Track the creation history of each field, for sorting reasons.
         global _field_counter
@@ -361,6 +363,8 @@ class Resource(six.with_metaclass(ResourceMeta)):
         for key, value in copy(kwargs).items():
             if value is None:
                 kwargs.pop(key)
+            if hasattr(value, 'read'):
+                kwargs[key] = value.read()
 
         # Determine which record we are writing, if we weren't given a
         # primary key.

@@ -17,8 +17,13 @@ from tower_cli import models
 
 
 class Resource(models.Resource):
-    cli_help = 'Manage organizations within Ansible Tower.'
-    endpoint = '/organizations/'
+    cli_help = 'Manage projects within Ansible Tower.'
+    endpoint = '/projects/'
 
     name = models.Field(unique=True)
     description = models.Field(required=False)
+    organization = models.Field(type=int)
+    scm_type = models.Field(default='manual')
+    scm_branch = models.Field()
+    scm_credential = models.Field(type=int)
+

@@ -13,12 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from tower_cli import models
+from __future__ import absolute_import, unicode_literals
+import os
+
+import click
 
 
-class Resource(models.Resource):
-    cli_help = 'Manage organizations within Ansible Tower.'
-    endpoint = '/organizations/'
+class File(click.File):
+    """A subclass of click.File that adds `os.path.expanduser`."""
 
-    name = models.Field(unique=True)
-    description = models.Field(required=False)
+    def convert(self, value, param, ctx):
+        if hasattr(value, 'read') or hasattr(value, 'write'):
+            return value
+        value = os.path.expanduser(value)
+        return super(File, self).convert(value, param, ctx)

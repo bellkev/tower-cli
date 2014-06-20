@@ -17,16 +17,17 @@ from tower_cli import models
 
 
 class Resource(models.Resource):
-    """A model representing users within Ansible Tower.
+    """A resource representing users within Ansible Tower.
 
     Users are the sole authentication unit within the Ansible Tower system
     (as of this writing), and are required for anyone to do anything within
     Tower.
     """
+    cli_help = 'Manage users within Ansible Tower.'
     endpoint = '/users/'
 
     username = models.Field(unique=True)
     email = models.Field(unique=True)
     first_name = models.Field(required=False)
     last_name = models.Field(required=False)
-    is_superuser = models.Field(type=bool)
+    is_superuser = models.Field(required=False, type=bool)

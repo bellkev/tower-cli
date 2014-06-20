@@ -13,18 +13,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-def cli_command(method=None, **kwargs):
-    """Mark this method as a CLI command.
-    
-    This will only have any meaningful effect in methods that are members of a
-    Resource subclass.
+import click
+
+
+class Command(click.Command):
+    """A Command subclass that adds support for the concept that invocation
+    without arguments assumes `--help`.
     """
-    if not method or kwargs:
-        def decorator(method):
-            method._cli_command = True
-            method._cli_command_attrs = kwargs
-            return method
-        return decorator
-    else:
-        method._cli_command = True
-        return method
+    # For some reason, click only supports this in `click.MultiCommand`.
+    # Should that change, it would be possible to just use the `click.Command`
+    # class instead of this one.
+    parse_args = click.MultiCommand.parse_args
+
+    def __init__(self, name=None, no_args_is_help=False, **kwargs):
+        self.no_args_is_help = no_args_is_help
+        super(Command, self).__init__(name=name, **kwargs)

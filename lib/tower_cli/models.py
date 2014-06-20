@@ -14,11 +14,22 @@
 # limitations under the License.
 
 from __future__ import absolute_import, unicode_literals
+from copy import copy
+import functools
+import inspect
+import json
+import re
 
 import six
 
+import click
+from click.decorators import _make_command
+
 from tower_cli.api import client
+from tower_cli.resources import cli_command
 from tower_cli.utils import exceptions as exc
+from tower_cli.utils.command import Command
+from tower_cli.utils.data_structures import OrderedDict
 
 
 _field_counter = 0
@@ -81,7 +92,18 @@ class ResourceMeta(type):
     def __new__(cls, name, bases, attrs):
         super_new = super(ResourceMeta, cls).__new__
 
-        # Sanity check: Only perform initialization for subclasses.
+        # Mark all `@cli_command` methods as CLI commands.
+        commands = set()
+        for base in bases:
+            base_commands = getattr(base, 'commands', [])
+            commands = commands.union(base_commands)
+        for key, value in attrs.items():
+            if getattr(value, '_cli_command', False):
+                commands.add(key)
+        attrs['commands'] = sorted(commands)
+
+        # Sanity check: Only perform remaining initialization for subclasses
+        # of Resource, not Resource itself.
         parents = [b for b in bases if isinstance(b, ResourceMeta)]
         if not parents:
             return super_new(cls, name, bases, attrs)
@@ -90,7 +112,7 @@ class ResourceMeta(type):
         newattrs = {}
 
         # Iterate over each of the fields and move them into a
-        # `fields` list.
+        # `fields` list; port remaining attrs unchanged into newattrs.
         fields = []
         unique_fields = set()
         for k, v in attrs.items():
@@ -106,7 +128,7 @@ class ResourceMeta(type):
 
         # Cowardly refuse to create a Resource with no endpoint
         # (unless it's the base class).
-        if 'endpoint' not in newattrs:
+        if not newattrs.get('endpoint', None):
             raise TypeError('Resource subclasses must have an `endpoint`.')
 
         # Ensure that the endpoint ends in a trailing slash, since we
@@ -122,6 +144,7 @@ class Resource(six.with_metaclass(ResourceMeta)):
     """Abstract class representing resources within the Ansible Tower system,
     on which actions can be taken.
     """
+    cli_help = ''
     endpoint = None
 
     # The basic methods for interacting with a resource are `read`, `write`,
@@ -131,6 +154,128 @@ class Resource(six.with_metaclass(ResourceMeta)):
     # Most likely, `read` and `write` won't see much direct use; rather,
     # `get` and `list` are wrappers around `read` and `create` and
     # `modify` are wrappers around `write`.
+
+    def as_command(self):
+        """Return a `click.Command` class for interacting with this
+        Resource.
+        """
+        class Subcommand(click.MultiCommand):
+            """A subcommand that implements all command methods on the
+            Resource.
+            """
+            def __init__(self, resource):
+                self.resource = resource
+                self.resource_name = resource.__module__.split('.')[-1]
+                super(Subcommand, self).__init__()
+
+            def list_commands(self, ctx):
+                """Return a list of all methods decorated with the
+                @cli_command decorator.
+                """
+                return self.resource.commands
+
+            def get_command(self, ctx, name):
+                """Retrieve the appropriate method from the Resource,
+                decorate it as a click command, and return that method.
+                """
+                # Get the method.
+                method = getattr(self.resource, name)
+
+                # If the help message comes from the docstring, then
+                # convert it into a message specifically for this resource.
+                attrs = getattr(method, '_cli_command_attrs', {})
+                help_text = inspect.getdoc(method)
+                if isinstance(help_text, six.binary_type):
+                    help_text = help_text.decode('utf-8')
+                attrs['help'] = self._auto_help_text(help_text)
+
+                # Wrap the method, such that it outputs its final return
+                # value rather than returning it.
+                new_method = self._echo_method(method)
+
+                # Soft copy the "__click_params__", if any exist.
+                # This is the internal holding method that the click library
+                # uses to store @click.option and @click.argument directives
+                # before the method is converted into a command.
+                #
+                # Because self._echo_method uses @functools.wraps, this is
+                # actually preserved; the purpose of copying it over is
+                # so we can get our resource fields at the top of the help;
+                # the easiest way to do this is to load them in before the
+                # conversion takes place. (This is a happy result of Armin's
+                # work to get around Python's processing decorators
+                # bottom-to-top.)
+                click_params = getattr(method, '__click_params__', [])
+                new_method.__click_params__ = copy(click_params)
+
+                # Write options based on the fields available on this resource.
+                for field in reversed(self.resource.fields):
+                    click.option(field.option, type=field.type,
+                                 help='The %s field.' % field.name)(new_method)
+
+                # Make a click Command instance using this method
+                # as the callback, and return it.
+                command = _make_command(new_method, name=name, attrs=attrs,
+                                                    cls=Command)
+
+                # If this method has a `pk` positional argument,
+                # then add a click argument for it.
+                code = six.get_function_code(method)
+                if 'pk' in code.co_varnames:
+                    click.argument('pk', nargs=1, required=False,
+                                         type=int)(command)
+
+                # Done; return the command.
+                return command
+
+            def _auto_help_text(self, help_text):
+                """Given a method with a docstring, convert the docstring
+                to more CLI appropriate wording, and also disambiguate the
+                word "object" on the base class docstrings.
+                """
+                # Convert the word "object" to the appropriate type of
+                # object being modified (e.g. user, organization).
+                if not self.resource_name.startswith(('a', 'e', 'i', 'o')):
+                    help_text = help_text.replace('an object',
+                                                  'a %s' % self.resource_name)
+                help_text = help_text.replace('object', self.resource_name)
+
+                # Convert some common Python terms to their CLI equivalents.
+                help_text = help_text.replace('keyword argument', 'option')
+                help_text = help_text.replace('raise an exception',
+                                              'abort with an error')
+
+                # Convert keyword arguments specified in docstrings enclosed
+                # by backticks to switches.
+                for match in re.findall(r'`([\w_]+)`', help_text):
+                    option = '--%s' % match.replace('_', '-')
+                    help_text = help_text.replace('`%s`' % match, option)
+
+                # Done; return the new help text.
+                return help_text
+
+            def _echo_method(self, method):
+                """Given a method, return a method that runs the internal
+                method and echos the result.
+                """
+                @functools.wraps(method)
+                def func(*args, **kwargs):
+                    result = method(*args, **kwargs)
+
+                    # If this was a request that could result in a modification
+                    # of data, print it in Ansible coloring.
+                    color_info = {}
+                    if 'changed' in result:
+                        if result['changed']:
+                            color_info['fg'] = 'yellow'
+                        else:
+                            color_info['fg'] = 'green'
+
+                    # Perform the echo.
+                    click.secho(json.dumps(result, indent=2), **color_info)
+                return func
+
+        return Subcommand(resource=self)
 
     def read(self, pk=None, fail_on_no_results=False, 
                    fail_on_multiple_results=False, **kwargs):
@@ -207,6 +352,13 @@ class Resource(six.with_metaclass(ResourceMeta)):
         """
         existing_data = {}
 
+        # Remove default values (anything where the value is None).
+        # click is unfortunately bad at the way it sends through unspecified
+        # defaults.
+        for key, value in copy(kwargs).items():
+            if value is None:
+                kwargs.pop(key)
+
         # Determine which record we are writing, if we weren't given a
         # primary key.
         if not pk:
@@ -222,17 +374,32 @@ class Resource(six.with_metaclass(ResourceMeta)):
             # This allows us to know whether the write made any changes.
             existing_data = self.get(pk)
 
+        # Sanity check: Are we missing required values?
+        # If we don't have a primary key, then all required values must be
+        # set, and if they're not, it's an error.
+        required_fields = [i.name for i in self.fields if i.required]
+        missing_fields = [i for i in required_fields if i not in kwargs]
+        if missing_fields:
+            raise exc.BadRequest('Missing required fields: %s' %
+                                 ', '.join(missing_fields))
+
         # Sanity check: Do we need to do a write at all?
         # If `force_on_exists` is False and the record was, in fact, found,
         # then no action is required.
         if pk and not force_on_exists:
-            return {'changed': False, 'id': pk}
+            return OrderedDict((
+                ('changed', False),
+                ('id', pk),
+            ))
 
         # Similarly, if all existing data matches our write parameters,
         # there's no need to do anything.
         if all([kwargs[k] == existing_data.get(k, None)
                 for k in kwargs.keys()]):
-            return {'changed': False, 'id': pk}
+            return OrderedDict((
+                ('changed', False),
+                ('id', pk),
+            ))
 
         # Get the URL and method to use for the write.
         url = self.endpoint
@@ -246,10 +413,14 @@ class Resource(six.with_metaclass(ResourceMeta)):
 
         # At this point, we know the write succeeded, and we know that data
         # was changed in the process.
-        return {'changed': True, 'id': r.json()['id']}
+        return OrderedDict((
+            ('changed', True),
+            ('id', r.json()['id']),
+        ))
 
+    @cli_command(no_args_is_help=True)
     def delete(self, pk=None, fail_on_missing=False, **kwargs):
-        """Remove the given object using the Ansible Tower API.
+        """Remove the given object.
 
         If `fail_on_missing` is True, then the object's not being found is
         considered a failure; otherwise, a success with no change is reported.
@@ -280,10 +451,12 @@ class Resource(six.with_metaclass(ResourceMeta)):
     #   - read:  get, list
     #   - write: create, modify
 
-    def get(self, pk=None, fail_on_no_results=True,
-                  fail_on_multiple_results=True, **kwargs):
-        """Return the one and exactly one result that matches the provided
-        primary key and/or filters.
+    @cli_command(no_args_is_help=True)
+    def get(self, pk=None, **kwargs):
+        """Return one and exactly one object.
+
+        Lookups may be through a primary key, specified as a positional
+        argument, and/or through filters specified through keyword arguments.
 
         If the number of results does not equal one, raise an exception.
         """
@@ -291,12 +464,41 @@ class Resource(six.with_metaclass(ResourceMeta)):
                              fail_on_multiple_results=True, **kwargs)
         return response['results'][0]
 
+    @cli_command
+    @click.option('--page', default=1, type=int, help='The page to show.',
+                            show_default=True)
     def list(self, **kwargs):
-        """Return a list of objects matching the provided filters.
+        """Return a list of objects.
+
+        If one or more filters are provided through keyword arguments,
+        filter the results accordingly.
+
         If no filters are provided, return all results.
         """
-        return self.read(**kwargs)
+        # Get the response.
+        response = self.read(**kwargs)
 
+        # Alter the "next" and "previous" to reflect simple integers,
+        # rather than URLs, since this endpoint just takes integers.
+        for key in ('next', 'previous'):
+            if not response[key]:
+                continue
+            match = re.search(r'page=(?P<num>[\d]+)', response[key])
+            response[key] = int(match.groupdict()['num'])
+
+        # Done; return the response
+        return response
+
+    @cli_command(no_args_is_help=True)
+    @click.option('--fail-on-found', default=False,
+                  show_default=True, type=bool,
+                  help='If True, return an error if a matching record already '
+                       'exists.')
+    @click.option('--force-on-exists', default=False,
+                  show_default=True, type=bool,
+                  help='If True, if a match is found on unique fields, other '
+                       'fields will be updated to the provided values. If '
+                       'False, a match causes the request to be a no-op.')
     def create(self, fail_on_found=False, force_on_exists=False, **kwargs):
         """Create an object.
 
@@ -307,16 +509,24 @@ class Resource(six.with_metaclass(ResourceMeta)):
         return self.write(create_on_missing=True, fail_on_found=fail_on_found,
                           force_on_exists=force_on_exists, **kwargs)
 
-    def modify(self, pk=None, create_on_missing=False, force_on_exists=True,
-                     **kwargs):
+    @cli_command(no_args_is_help=True)
+    @click.option('--create-on-missing', default=False,
+                  show_default=True, type=bool,
+                  help='If True, and if options rather than a primary key are '
+                       'used to attempt to match a record, will create the '
+                       'record if it does not exist. This is an alias to '
+                       '`create --force-on-exists=true`.')
+    def modify(self, pk=None, create_on_missing=False, **kwargs):
         """Modify an already existing object.
 
-        If unique fields exist and all unique fields are provided, they can be
-        used in lieu of a primary key for a lookup; in such a case, only
-        non-unique fields are written.
+        If unique fields exist and are provided, they can be used in lieu of
+        a primary key for a lookup; in such a case, only non-unique fields
+        are written.
+
+        To modify unique fields, you must use the primary key for the lookup.
         """
         return self.write(pk, create_on_missing=create_on_missing,
-                              force_on_exists=force_on_exists, **kwargs)
+                              force_on_exists=True, **kwargs)
 
     def _lookup(self, fail_on_missing=False, fail_on_found=False, **kwargs):
         """Attempt to perform a lookup that is expected to return a single

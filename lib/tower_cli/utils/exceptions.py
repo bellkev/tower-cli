@@ -90,3 +90,10 @@ class Found(TowerCLIError):
     explicitly told that it shouldn't.
     """
     exit_code = 60
+
+
+class ValidationError(TowerCLIError):
+    """An exception class for invalid values being sent as option
+    switches to Tower CLI.
+    """
+    exit_code = 64

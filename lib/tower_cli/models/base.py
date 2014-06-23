@@ -26,65 +26,12 @@ import click
 from click.decorators import _make_command
 
 from tower_cli.api import client
+from tower_cli.models.fields import Field
 from tower_cli.resources import cli_command
 from tower_cli.utils import exceptions as exc
 from tower_cli.utils.command import Command
 from tower_cli.utils.data_structures import OrderedDict
-
-
-_field_counter = 0
-
-
-class Field(object):
-    """A class representing flags on a given field on a model.
-    This class tracks whether a field is unique, filterable, read-only, etc.
-    """
-    def __init__(self, type=six.text_type, default=None, filterable=True,
-                       password=False, read_only=False, required=True,
-                       unique=False):
-        # Save properties of this field.
-        self.name = ''
-        self.type = type
-        self.default = default
-        self.filterable = filterable
-        self.password = password
-        self.read_only = read_only
-        self.required = required
-        self.unique = unique
-
-        # Track the creation history of each field, for sorting reasons.
-        global _field_counter
-        self.number = _field_counter
-        _field_counter += 1
-
-    def __lt__(self, other):
-        return self.number < other.number
-
-    def __gt__(self, other):
-        return self.number > other.number
-
-    def __repr__(self):
-        return '<Field: %s (%s)>' % (self.name, self.flags)
-
-    @property
-    def flags(self):
-        flags_list = [self.type.__name__]        
-        if self.read_only:
-            flags_list.append('read-only')
-        if self.unique:
-            flags_list.append('unique')
-        if not self.filterable:
-            flags_list.append('not filterable')
-        if not self.required:
-            flags_list.append('not required')
-        return ', '.join(flags_list)
-
-    @property
-    def option(self):
-        """Return the field name as a bash option string
-        (e.g. "--field-name").
-        """
-        return '--' + self.name.replace('_', '-')
+from tower_cli.utils.types import File
 
 
 class ResourceMeta(type):
@@ -215,8 +162,14 @@ class Resource(six.with_metaclass(ResourceMeta)):
 
                 # Write options based on the fields available on this resource.
                 for field in reversed(self.resource.fields):
-                    click.option(field.option, type=field.type,
-                                 help='The %s field.' % field.name)(new_method)
+                    if not field.is_option:
+                        continue
+                    click.option(field.option,
+                        default=field.default,
+                        help=field.help,
+                        type=field.type,
+                        show_default=field.show_default,
+                    )(new_method)
 
                 # Make a click Command instance using this method
                 # as the callback, and return it.
@@ -380,6 +333,24 @@ class Resource(six.with_metaclass(ResourceMeta)):
             # We already know the primary key, but get the existing data.
             # This allows us to know whether the write made any changes.
             existing_data = self.get(pk)
+
+        # Determine the appropriate value for any implicit fields.
+        implicit_fields = [i for i in self.fields if i.implicit]
+        for field in implicit_fields:
+            value = field.determine_value(self, kwargs)
+            if value is not None:
+                kwargs[field.name] = value
+
+        # If there are any fields with `choices`, ensure that the provided
+        # value matches one of those chocies.
+        choice_fields = [i for i in self.fields if i.choices]
+        for field in choice_fields:
+            key = field.name
+            if key in kwargs and kwargs[key] not in field.choices:
+                raise exc.ValidationError(
+                    'Invalid value for %s; valid options are: %s.' %
+                    (field.option, ', '.join(field.choices)),
+                )
 
         # Sanity check: Are we missing required values?
         # If we don't have a primary key, then all required values must be

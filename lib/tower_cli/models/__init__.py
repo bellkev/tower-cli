@@ -14,18 +14,7 @@
 # limitations under the License.
 
 from __future__ import absolute_import, unicode_literals
-import os
 
-import click
-
-
-class File(click.File):
-    """A subclass of click.File that adds `os.path.expanduser`."""
-
-    __name__ = 'file'
-
-    def convert(self, value, param, ctx):
-        if hasattr(value, 'read') or hasattr(value, 'write'):
-            return value
-        value = os.path.expanduser(value)
-        return super(File, self).convert(value, param, ctx)
+from tower_cli.models.base import Resource
+from tower_cli.models.fields import Field, ImplicitField
+from tower_cli.utils.types import File

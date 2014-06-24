@@ -52,9 +52,8 @@ class ResourceMeta(type):
         attrs['commands'] = sorted(commands)
 
         # Sanity check: Only perform remaining initialization for subclasses
-        # of Resource, not Resource itself.
-        parents = [b for b in bases if isinstance(b, ResourceMeta)]
-        if not parents:
+        # actual resources, not abstract ones.
+        if attrs.pop('abstract', False):
             return super_new(cls, name, bases, attrs)
 
         # Initialize a new attributes dictionary.
@@ -89,20 +88,13 @@ class ResourceMeta(type):
         return super_new(cls, name, bases, newattrs)
 
 
-class Resource(six.with_metaclass(ResourceMeta)):
-    """Abstract class representing resources within the Ansible Tower system,
-    on which actions can be taken.
+class BaseResource(six.with_metaclass(ResourceMeta)):
+    """Abstract class representing resources within the Ansible Tower
+    system, on which actions can be taken.
     """
+    abstract = True  # Not inherited.
     cli_help = ''
     endpoint = None
-
-    # The basic methods for interacting with a resource are `read`, `write`,
-    # and `delete`; these cover basic CRUD situations and have options
-    # to handle most desired behavior.
-    #
-    # Most likely, `read` and `write` won't see much direct use; rather,
-    # `get` and `list` are wrappers around `read` and `create` and
-    # `modify` are wrappers around `write`.
 
     def as_command(self):
         """Return a `click.Command` class for interacting with this
@@ -143,7 +135,7 @@ class Resource(six.with_metaclass(ResourceMeta)):
                 help_text = inspect.getdoc(method)
                 if isinstance(help_text, six.binary_type):
                     help_text = help_text.decode('utf-8')
-                attrs['help'] = self._auto_help_text(help_text)
+                attrs['help'] = self._auto_help_text(help_text or '')
 
                 # On some methods, we ignore the defaults, which are intended
                 # for writing and not reading; process this.
@@ -254,6 +246,21 @@ class Resource(six.with_metaclass(ResourceMeta)):
                 return func
 
         return Subcommand(resource=self)
+        
+
+class Resource(BaseResource):
+    """Abstract subclass of BaseResource that adds the standard create,
+    modify, list, get, and delete methods.
+    """
+    abstract = True  # Not inherited.
+
+    # The basic methods for interacting with a resource are `read`, `write`,
+    # and `delete`; these cover basic CRUD situations and have options
+    # to handle most desired behavior.
+    #
+    # Most likely, `read` and `write` won't see much direct use; rather,
+    # `get` and `list` are wrappers around `read` and `create` and
+    # `modify` are wrappers around `write`.
 
     def read(self, pk=None, fail_on_no_results=False, 
                    fail_on_multiple_results=False, debug=False, **kwargs):
@@ -378,7 +385,7 @@ class Resource(six.with_metaclass(ResourceMeta)):
         # Sanity check: Are we missing required values?
         # If we don't have a primary key, then all required values must be
         # set, and if they're not, it's an error.
-        required_fields = [i.name for i in self.fields if i.required]
+        required_fields = [i.key or i.name for i in self.fields if i.required]
         missing_fields = [i for i in required_fields if i not in kwargs]
         if missing_fields:
             raise exc.BadRequest('Missing required fields: %s' %

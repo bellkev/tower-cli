@@ -17,7 +17,7 @@ from __future__ import absolute_import, unicode_literals
 
 import click
 
-from tower_cli import models
+from tower_cli import models, get_resource
 from tower_cli.resources import cli_command
 from tower_cli.utils.types import MappedChoice
 
@@ -36,7 +36,7 @@ class Resource(models.Resource):
     inventory = models.Field(type=int)
     project = models.Field(type=int)
     playbook = models.Field()
-    machine_credential = models.Field(type=int)
+    machine_credential = models.Field('credential', type=int)
     cloud_credential = models.Field(type=int, required=False)
     forks = models.Field(type=int, default=0, show_default=True)
     limit = models.Field(required=False)
@@ -51,8 +51,15 @@ class Resource(models.Resource):
     @cli_command(no_args_is_help=True, use_fields_as_options=False)
     @click.argument('job_template_id')
     def launch(self, job_template_id):
-        """Launch a job based on this job template."""
+        """Launch a job based on this job template.
 
+        This is a mapping to `job launch`, such that:
+            - tower job_template launch 42
+            - tower job launch --template 42
+        ...are equivalent.
+        """
+        job_resource = get_resource('job')
+        return job_resource.launch(job_template=job_template_id)
 
         return {}
         # add some more info needed to start the job

@@ -24,7 +24,7 @@ from tower_cli.utils.exceptions import TowerCLIError
 
 
 @click.command()
-def version():
+def version(foo):
     """Display version information."""
 
     # Attempt to connect to the Ansible Tower server.

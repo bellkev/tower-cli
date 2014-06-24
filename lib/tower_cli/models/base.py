@@ -133,13 +133,20 @@ class Resource(six.with_metaclass(ResourceMeta)):
                 # Get the method.
                 method = getattr(self.resource, name)
 
+                # Get any attributes that were given at command-declaration
+                # time.
+                attrs = getattr(method, '_cli_command_attrs', {})
+
                 # If the help message comes from the docstring, then
                 # convert it into a message specifically for this resource.
-                attrs = getattr(method, '_cli_command_attrs', {})
                 help_text = inspect.getdoc(method)
                 if isinstance(help_text, six.binary_type):
                     help_text = help_text.decode('utf-8')
                 attrs['help'] = self._auto_help_text(help_text)
+
+                # On some methods, we ignore the defaults, which are intended
+                # for writing and not reading; process this.
+                ignore_defaults = attrs.pop('ignore_defaults', False)
 
                 # Wrap the method, such that it outputs its final return
                 # value rather than returning it.
@@ -161,15 +168,27 @@ class Resource(six.with_metaclass(ResourceMeta)):
                 new_method.__click_params__ = copy(click_params)
 
                 # Write options based on the fields available on this resource.
-                for field in reversed(self.resource.fields):
-                    if not field.is_option:
-                        continue
-                    click.option(field.option,
-                        default=field.default,
-                        help=field.help,
-                        type=field.type,
-                        show_default=field.show_default,
-                    )(new_method)
+                if attrs.pop('use_fields_as_options', True):
+                    for field in reversed(self.resource.fields):
+                        if not field.is_option:
+                            continue
+
+                        # Create the initial arguments based on the
+                        # option value. If we have a different key to use
+                        # (which is what gets routed to the Tower API),
+                        # ensure that is the first argument.
+                        args = [field.option]
+                        if field.key:
+                            args.insert(0, field.key)
+
+                        # Apply the option to the method.
+                        click.option(*args,
+                            default=field.default if not ignore_defaults
+                                                  else None,
+                            help=field.help,
+                            type=field.type,
+                            show_default=field.show_default
+                        )(new_method)
 
                 # Make a click Command instance using this method
                 # as the callback, and return it.
@@ -236,7 +255,7 @@ class Resource(six.with_metaclass(ResourceMeta)):
         return Subcommand(resource=self)
 
     def read(self, pk=None, fail_on_no_results=False, 
-                   fail_on_multiple_results=False, **kwargs):
+                   fail_on_multiple_results=False, debug=False, **kwargs):
         """Retrieve and return objects from the Ansible Tower API.
 
         If an `object_id` is provided, only attempt to read that object,
@@ -255,6 +274,20 @@ class Resource(six.with_metaclass(ResourceMeta)):
         url = self.endpoint
         if pk:
             url += '%d/' % pk
+
+        # Remove default values (anything where the value is None).
+        # click is unfortunately bad at the way it sends through unspecified
+        # defaults.
+        for key, value in copy(kwargs).items():
+            if value is None:
+                kwargs.pop(key)
+            if hasattr(value, 'read'):
+                kwargs[key] = value.read()
+
+        # If debugging is on, print the URL and data being sent.
+        if debug:
+            click.secho('GET %s' % url, fg='blue', bold=True)
+            click.secho('Params: %s' % kwargs, fg='blue', bold=True)
 
         # Make the request to the Ansible Tower API.
         r = client.get(url, params=kwargs)
@@ -287,7 +320,7 @@ class Resource(six.with_metaclass(ResourceMeta)):
         return resp
 
     def write(self, pk=None, create_on_missing=False, fail_on_found=False,
-                    force_on_exists=True, **kwargs):
+                    force_on_exists=True, debug=False, **kwargs):
         """Modify the given object using the Ansible Tower API.
         Return the object and a boolean value informing us whether or not
         the record was changed.
@@ -386,6 +419,11 @@ class Resource(six.with_metaclass(ResourceMeta)):
             url += '%d/' % pk
             method = 'PATCH'
 
+        # If debugging is on, print the URL and data being sent.
+        if debug:
+            click.secho('%s %s' % (method, url), fg='blue', bold=True)
+            click.secho('Data: %s' % kwargs, fg='blue', bold=True)
+
         # Actually perform the write.
         r = getattr(client, method.lower())(url, data=kwargs)
 
@@ -397,7 +435,8 @@ class Resource(six.with_metaclass(ResourceMeta)):
         ))
 
     @cli_command(no_args_is_help=True)
-    def delete(self, pk=None, fail_on_missing=False, **kwargs):
+    @click.option('--debug', default=False, is_flag=True)
+    def delete(self, pk=None, fail_on_missing=False, debug=False, **kwargs):
         """Remove the given object.
 
         If `fail_on_missing` is True, then the object's not being found is
@@ -417,6 +456,8 @@ class Resource(six.with_metaclass(ResourceMeta)):
         # appropriately (this is an okay response if `fail_on_missing` is
         # False).
         url = '%s%d/' % (self.endpoint, pk)
+        if debug:
+            click.secho('DELETE %s' % url, fg='blue', bold=True)
         try:
             client.delete(url)
             return {'changed': True}
@@ -429,7 +470,8 @@ class Resource(six.with_metaclass(ResourceMeta)):
     #   - read:  get, list
     #   - write: create, modify
 
-    @cli_command(no_args_is_help=True)
+    @cli_command(ignore_defaults=True, no_args_is_help=True)
+    @click.option('--debug', default=False, is_flag=True)
     def get(self, pk=None, **kwargs):
         """Return one and exactly one object.
 
@@ -442,9 +484,10 @@ class Resource(six.with_metaclass(ResourceMeta)):
                              fail_on_multiple_results=True, **kwargs)
         return response['results'][0]
 
-    @cli_command
+    @cli_command(ignore_defaults=True)
     @click.option('--page', default=1, type=int, help='The page to show.',
                             show_default=True)
+    @click.option('--debug', default=False, is_flag=True)
     def list(self, **kwargs):
         """Return a list of objects.
 
@@ -477,6 +520,7 @@ class Resource(six.with_metaclass(ResourceMeta)):
                   help='If True, if a match is found on unique fields, other '
                        'fields will be updated to the provided values. If '
                        'False, a match causes the request to be a no-op.')
+    @click.option('--debug', default=False, is_flag=True)
     def create(self, fail_on_found=False, force_on_exists=False, **kwargs):
         """Create an object.
 
@@ -494,6 +538,7 @@ class Resource(six.with_metaclass(ResourceMeta)):
                        'used to attempt to match a record, will create the '
                        'record if it does not exist. This is an alias to '
                        '`create --force-on-exists=true`.')
+    @click.option('--debug', default=False, is_flag=True)
     def modify(self, pk=None, create_on_missing=False, **kwargs):
         """Modify an already existing object.
 

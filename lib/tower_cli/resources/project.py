@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import click
+
 from tower_cli import models
 
 
@@ -23,7 +25,11 @@ class Resource(models.Resource):
     name = models.Field(unique=True)
     description = models.Field(required=False)
     organization = models.Field(type=int)
-    scm_type = models.Field(default='manual')
-    scm_branch = models.Field()
-    scm_credential = models.Field(type=int)
+    scm_type = models.Field(
+        default='manual',
+        type=click.Choice(['manual', 'git', 'hg', 'svn']),
+    )
+    scm_url = models.Field(required=False)
+    scm_branch = models.Field(required=False)
+    scm_credential = models.Field('credential', type=int, required=False)
 

@@ -23,14 +23,16 @@ class Field(object):
     """A class representing flags on a given field on a model.
     This class tracks whether a field is unique, filterable, read-only, etc.
     """
-    def __init__(self, type=six.text_type, default=None, choices=(),
+    def __init__(self, key=None, type=six.text_type, default=None,
                        filterable=True, help_text=None, is_option=True,
                        password=False, read_only=False, required=True,
                        show_default=False, unique=False):
+        self.name = ''  # Set by the ResourceMeta metaclass for each field
+                        # on a Resource.
+
         # Save properties of this field.
-        self.name = ''
+        self.key = key
         self.type = type
-        self.choices = choices
         self.default = default
         self.help_text = help_text
         self.implicit = False

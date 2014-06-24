@@ -100,9 +100,11 @@ class Client(Session):
         # Sanity check: Did we get some other kind of error?
         # If so, write an appropriate error message.
         if r.status_code >= 400:
-            raise exc.BadRequest('The Tower server claims it was sent a bad '
-                                 'request. Please file a bug report in the '
-                                 'Tower CLI project.')
+            raise exc.BadRequest(
+                'The Tower server claims it was sent a bad request. '
+                'Please file a bug report in the Tower CLI project.\n\n'
+                'URL: %s\nData: %s' % (url, kwargs.get('data', {}))
+            )
 
         # Django REST Framework intelligently prints API keys in the
         # order that they are defined in the models and serializer.

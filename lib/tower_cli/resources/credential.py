@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import click
+
 from tower_cli import models
 from tower_cli.utils import exceptions as exc
 
@@ -31,11 +33,11 @@ class Resource(models.Resource):
 
     # What type of credential is this (machine, SCM, etc.)?
     kind = models.Field(
-        choices=('ssh', 'scm', 'aws', 'rax'),
         default='ssh',
         help_text='The type of credential being added. '
                   'Valid options are: ssh, scm, aws, rax.',
         show_default=True,
+        type=click.Choice(['ssh', 'scm', 'aws', 'rax']),
     )
 
     # SSH and SCM fields.

@@ -13,7 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import absolute_import, unicode_literals
+
+import click
+
 from tower_cli import models
+from tower_cli.resources import cli_command
 
 
 class Resource(models.Resource):
@@ -23,9 +28,9 @@ class Resource(models.Resource):
     name = models.Field(unique=True)
     description = models.Field(required=False)
     job_type = models.Field(
-        choices=('run', 'check'),
         default='run',
         show_default=True,
+        type=click.Choice(['run', 'check']),
     )
     inventory = models.Field(type=int)
     project = models.Field(type=int)
@@ -35,9 +40,15 @@ class Resource(models.Resource):
     forks = models.Field(type=int, default=0, show_default=True)
     limit = models.Field(required=False)
     verbosity = models.Field(
-        choices=('default', 'verbose', 'debug'),
         default='default',
         show_default=True,
-    )  # Perhaps do this with a -v flag?
+        type=click.Choice(['default', 'verbose', 'debug']),
+    )
     job_tags = models.Field(required=False)
     variables = models.Field(type=models.File('r'), required=False)
+
+    @cli_command(no_args_is_help=True, use_fields_as_options=False)
+    @click.argument('job_template_id')
+    def launch(self, job_template_id):
+        """Launch a job based on this job template."""
+        return {}

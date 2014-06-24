@@ -115,6 +115,7 @@ class Resource(six.with_metaclass(ResourceMeta)):
             def __init__(self, resource, *args, **kwargs):
                 self.resource = resource
                 self.resource_name = resource.__module__.split('.')[-1]
+                self.resource_name = self.resource_name.replace('_', ' ')
                 super(Subcommand, self).__init__(*args,
                     help=self.resource.cli_help,
                     **kwargs
@@ -373,17 +374,6 @@ class Resource(six.with_metaclass(ResourceMeta)):
             value = field.determine_value(self, kwargs)
             if value is not None:
                 kwargs[field.name] = value
-
-        # If there are any fields with `choices`, ensure that the provided
-        # value matches one of those chocies.
-        choice_fields = [i for i in self.fields if i.choices]
-        for field in choice_fields:
-            key = field.name
-            if key in kwargs and kwargs[key] not in field.choices:
-                raise exc.ValidationError(
-                    'Invalid value for %s; valid options are: %s.' %
-                    (field.option, ', '.join(field.choices)),
-                )
 
         # Sanity check: Are we missing required values?
         # If we don't have a primary key, then all required values must be

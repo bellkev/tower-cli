@@ -103,7 +103,8 @@ class Client(Session):
             raise exc.BadRequest(
                 'The Tower server claims it was sent a bad request. '
                 'Please file a bug report in the Tower CLI project.\n\n'
-                'URL: %s\nData: %s' % (url, kwargs.get('data', {}))
+                'URL: %s\nData: %s\nResponse:%s' %
+                (url, kwargs.get('data', {}), r.content.decode('utf8'))
             )
 
         # Django REST Framework intelligently prints API keys in the

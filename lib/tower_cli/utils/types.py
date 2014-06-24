@@ -14,6 +14,7 @@
 # limitations under the License.
 
 from __future__ import absolute_import, unicode_literals
+import collections
 import os
 
 import click
@@ -29,3 +30,24 @@ class File(click.File):
             return value
         value = os.path.expanduser(value)
         return super(File, self).convert(value, param, ctx)
+
+
+class MappedChoice(click.Choice):
+    """A subclass of click.Choice that allows a distinction between the
+    choice sent to the method and the choice typed on the CLI.
+    """
+    def __init__(self, choices):
+        choices = collections.OrderedDict(choices)
+
+        # Call the values list "choices" so we take advantage of the
+        # superclass functionality.
+        self.choices = [i for i in choices.values()]
+        self.actual_choices = [i for i in choices.keys()]
+
+    def convert(self, value, param, ctx):
+        """Match against the appropriate choice value using the superclass
+        implementation, and then return the actual choice.
+        """
+        choice = super(MappedChoice, self).convert(value, param, ctx)
+        ix = self.choices.index(choice)
+        return self.actual_choices[ix]

@@ -97,3 +97,10 @@ class ValidationError(TowerCLIError):
     switches to Tower CLI.
     """
     exit_code = 64
+
+
+class JobFailure(TowerCLIError):
+    """An exception class for job failures that require error codes within
+    the Tower CLI.
+    """
+    exit_code = 99

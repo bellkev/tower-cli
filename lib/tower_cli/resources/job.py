@@ -17,6 +17,8 @@ from __future__ import absolute_import, unicode_literals
 from copy import copy
 from datetime import datetime
 from getpass import getpass
+import sys
+import time
 
 import click
 
@@ -54,18 +56,97 @@ class Resource(models.BaseResource):
         data['name'] = 'CLI Job Invocation: %s' % datetime.now()
 
         # Create the new job in Ansible Tower.
-        job = client.post('/jobs/', data=data)
+        job = client.post('/jobs/', data=data).json()
 
         # There's a non-trivial chance that we are going to need some
         # additional information to start the job; in particular, many jobs
         # rely on passwords entered at run-time.
         #
         # If there are any such passwords on this job, ask for them now.
-        job_start_info = client.get('/jobs/%d/start/' % job['id'])
+        job_start_info = client.get('/jobs/%d/start/' % job['id']).json()
         start_data = {}
         for password in job_start_info.get('passwords_needed_to_start', []):
             start_data[password] = getpass('Password for %s: ' % password)
 
         # Actually start the job.
         result = client.post('/jobs/%d/start/' % job['id'], start_data)
-        return result
+        return {
+            'changed': True,
+            'id': job['id'],
+        }
+
+    @cli_command(no_args_is_help=True)
+    @click.option('--min-interval',
+                  default=1, help='The minimum interval to request an update '
+                                  'from Tower.')
+    @click.option('--max-interval',
+                  default=30, help='The maximum interval to request an update '
+                                   'from Tower.')
+    def monitor(self, pk, min_interval=1, max_interval=30, outfile=sys.stdout):
+        """Monitor a running job.
+
+        Blocks further input until the job completes (whether successfully or
+        unsuccessfully) and a final status can be given.
+        """
+        SPINNER_CHARS = ('|', '/', '-', '\\')
+        longest_string = 0
+        interval = min_interval
+
+        # Poll the Ansible Tower instance for status, and print the status
+        # to the outfile (usually standard out).
+        #
+        # Note that this is one of the few places where we use `click.secho`
+        # even though we're in a function that might theoretically be imported
+        # and run in Python.  This seems fine; outfile can be set to /dev/null
+        # and very much the normal use for this method should be CLI
+        # monitoring.
+        job = self.status(pk)
+        while job['status'] != 'successful':
+            # If the job has failed, we want to raise an Exception for that
+            # so we get a non-zero response.
+            if job['failed']:
+                click.secho('\r' + ' ' * longest_string + '\n', file=outfile)
+                raise exc.JobFailure('Job failed.')
+
+            # Print the current status.
+            output = '\rCurrent status: %s' % job['status']
+            if longest_string > len(output):
+                output += ' ' * (longest_string - len(output))
+            else:
+                longest_string = len(output)
+            click.secho(output, nl=False, file=outfile)
+
+            # Increment the interval and put the processor to sleep
+            # briefly.
+            interval = min(interval * 1.5, max_interval)
+            time.sleep(interval)
+
+            # Ask the server for a new status.
+            job = self.status(pk)
+
+            # Wipe out the previous output
+            click.secho('\r' + ' ' * longest_string, file=outfile)
+
+        # Done; return the result
+        return job
+
+    @cli_command(no_args_is_help=True)
+    @click.option('-v', '--verbose', is_flag=True, default=False,
+                                     help='Print more detail.')
+    def status(self, pk, verbose=False):
+        """Print the current job status."""
+        # Get the job from Ansible Tower.
+        job = client.get('/jobs/%d/' % pk).json()
+
+        # In most cases, we probably only want to know the status of the job
+        # and the amount of time elapsed. However, if we were asked for
+        # verbose information, provide it.
+        if verbose:
+            return job
+
+        # Print just the information we need.
+        return {
+            'elapsed': job['elapsed'],
+            'failed': job['failed'],
+            'status': job['status'],
+        }

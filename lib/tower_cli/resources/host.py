@@ -22,6 +22,6 @@ class Resource(models.Resource):
 
     name = models.Field(unique=True)
     description = models.Field(required=False)
-    group = models.Field(type=int)
+    inventory = models.Field(type=int)
     enabled = models.Field(type=bool, default=True, show_default=True)
     variables = models.Field(type=models.File('r'), required=False)

@@ -18,7 +18,7 @@ from tower_cli import models
 
 class Resource(models.Resource):
     cli_help = 'Manage groups belonging to an inventory.'
-    endpoint = '/inventories/'
+    endpoint = '/groups/'
 
     name = models.Field(unique=True)
     description = models.Field(required=False)

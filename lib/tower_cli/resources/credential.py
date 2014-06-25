@@ -43,8 +43,14 @@ class Resource(models.Resource):
     # SSH and SCM fields.
     username = models.Field(required=False)
     password = models.Field(password=True, required=False)
-    private_key = models.Field(type=models.File('r'), required=False)
-    private_key_password = models.Field(password=True, required=False)
+    private_key = models.Field('ssh_key_data',
+        help_text="The full path to the SSH private key to store. "
+                  "(Don\'t worry; it's encrypted.)",
+        required=False,
+        type=models.File('r'),
+    )
+    private_key_password = models.Field('ssh_key_unlock', password=True,
+                                                          required=False)
 
     # SSH specific fields.
     sudo_username = models.Field(required=False)

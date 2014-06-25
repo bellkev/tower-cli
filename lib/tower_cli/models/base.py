@@ -387,7 +387,7 @@ class Resource(BaseResource):
         # set, and if they're not, it's an error.
         required_fields = [i.key or i.name for i in self.fields if i.required]
         missing_fields = [i for i in required_fields if i not in kwargs]
-        if missing_fields:
+        if missing_fields and not pk:
             raise exc.BadRequest('Missing required fields: %s' %
                                  ', '.join(missing_fields))
 
@@ -432,7 +432,8 @@ class Resource(BaseResource):
         ))
 
     @cli_command(no_args_is_help=True)
-    @click.option('--debug', default=False, is_flag=True)
+    @click.option('--debug', default=False, is_flag=True,
+                             help='Show debugging information.')
     def delete(self, pk=None, fail_on_missing=False, debug=False, **kwargs):
         """Remove the given object.
 
@@ -468,7 +469,8 @@ class Resource(BaseResource):
     #   - write: create, modify
 
     @cli_command(ignore_defaults=True, no_args_is_help=True)
-    @click.option('--debug', default=False, is_flag=True)
+    @click.option('--debug', default=False, is_flag=True,
+                             help='Show debugging information.')
     def get(self, pk=None, **kwargs):
         """Return one and exactly one object.
 
@@ -484,7 +486,8 @@ class Resource(BaseResource):
     @cli_command(ignore_defaults=True)
     @click.option('--page', default=1, type=int, help='The page to show.',
                             show_default=True)
-    @click.option('--debug', default=False, is_flag=True)
+    @click.option('--debug', default=False, is_flag=True,
+                             help='Show debugging information.')
     def list(self, **kwargs):
         """Return a list of objects.
 
@@ -517,7 +520,8 @@ class Resource(BaseResource):
                   help='If True, if a match is found on unique fields, other '
                        'fields will be updated to the provided values. If '
                        'False, a match causes the request to be a no-op.')
-    @click.option('--debug', default=False, is_flag=True)
+    @click.option('--debug', default=False, is_flag=True,
+                             help='Show debugging information.')
     def create(self, fail_on_found=False, force_on_exists=False, **kwargs):
         """Create an object.
 
@@ -535,7 +539,8 @@ class Resource(BaseResource):
                        'used to attempt to match a record, will create the '
                        'record if it does not exist. This is an alias to '
                        '`create --force-on-exists=true`.')
-    @click.option('--debug', default=False, is_flag=True)
+    @click.option('--debug', default=False, is_flag=True,
+                             help='Show debugging information.')
     def modify(self, pk=None, create_on_missing=False, **kwargs):
         """Modify an already existing object.
 

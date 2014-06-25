@@ -16,6 +16,7 @@
 from __future__ import absolute_import, unicode_literals
 from copy import copy
 from datetime import datetime
+from getpass import getpass
 
 import click
 
@@ -55,21 +56,16 @@ class Resource(models.BaseResource):
         # Create the new job in Ansible Tower.
         job = client.post('/jobs/', data=data)
 
-        return
-        ########
-                # get the parameters needed to start the job (if any)
-        # prompt for values unless given on command line (FIXME)
-
-        print "URL=%s" % jt_jobs_url
-
-        job_id = job_result['id']
-        job_start_url = "/api/v1/jobs/%d/start/" % job_id
-        job_start_info = handle.get(job_start_url)
+        # There's a non-trivial chance that we are going to need some
+        # additional information to start the job; in particular, many jobs
+        # rely on passwords entered at run-time.
+        #
+        # If there are any such passwords on this job, ask for them now.
+        job_start_info = client.get('/jobs/%d/start/' % job['id'])
         start_data = {}
         for password in job_start_info.get('passwords_needed_to_start', []):
-            value = getpass.getpass('%s: ' % password)
-            start_data[password] = value
+            start_data[password] = getpass('Password for %s: ' % password)
 
-        # start the job 
-        job_start_result = handle.post(job_start_url, start_data)
-        print common.dump(job_start_result) 
+        # Actually start the job.
+        result = client.post('/jobs/%d/start/' % job['id'], start_data)
+        return result

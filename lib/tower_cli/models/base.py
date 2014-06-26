@@ -364,6 +364,7 @@ class Resource(BaseResource):
         # primary key.
         if not pk:
             existing_data = self._lookup(
+                debug=debug,
                 fail_on_found=fail_on_found,
                 fail_on_missing=not create_on_missing,
                 **kwargs
@@ -373,7 +374,7 @@ class Resource(BaseResource):
         else:
             # We already know the primary key, but get the existing data.
             # This allows us to know whether the write made any changes.
-            existing_data = self.get(pk)
+            existing_data = self.get(pk, debug=debug)
 
         # Determine the appropriate value for any implicit fields.
         implicit_fields = [i for i in self.fields if i.implicit]
@@ -559,7 +560,8 @@ class Resource(BaseResource):
         return self.write(pk, create_on_missing=create_on_missing,
                               force_on_exists=True, **kwargs)
 
-    def _lookup(self, fail_on_missing=False, fail_on_found=False, **kwargs):
+    def _lookup(self, fail_on_missing=False, fail_on_found=False,
+                      debug=False, **kwargs):
         """Attempt to perform a lookup that is expected to return a single
         result, and return the record.
 
@@ -582,7 +584,7 @@ class Resource(BaseResource):
 
         # Get the record to write.
         try:
-            existing_data = self.get(**read_params)
+            existing_data = self.get(debug=debug, **read_params)
             if fail_on_found:
                 raise exc.Found('A record matching %s already exists, and '
                                 'you requested a failure in that case.')

@@ -519,11 +519,11 @@ class Resource(BaseResource):
 
     @cli_command(no_args_is_help=True)
     @click.option('--fail-on-found', default=False,
-                  show_default=True, type=bool,
+                  show_default=True, type=bool, is_flag=True,
                   help='If True, return an error if a matching record already '
                        'exists.')
     @click.option('--force-on-exists', default=False,
-                  show_default=True, type=bool,
+                  show_default=True, type=bool, is_flag=True,
                   help='If True, if a match is found on unique fields, other '
                        'fields will be updated to the provided values. If '
                        'False, a match causes the request to be a no-op.')
@@ -541,7 +541,7 @@ class Resource(BaseResource):
 
     @cli_command(no_args_is_help=True)
     @click.option('--create-on-missing', default=False,
-                  show_default=True, type=bool,
+                  show_default=True, type=bool, is_flag=True,
                   help='If True, and if options rather than a primary key are '
                        'used to attempt to match a record, will create the '
                        'record if it does not exist. This is an alias to '

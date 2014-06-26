@@ -17,6 +17,7 @@ from __future__ import absolute_import, unicode_literals
 from copy import copy
 from datetime import datetime
 from getpass import getpass
+import itertools
 import sys
 import time
 
@@ -88,9 +89,10 @@ class Resource(models.BaseResource):
         Blocks further input until the job completes (whether successfully or
         unsuccessfully) and a final status can be given.
         """
-        SPINNER_CHARS = ('|', '/', '-', '\\')
+        dots = itertools.cycle([0, 1, 2, 3])
         longest_string = 0
         interval = min_interval
+        last_poll = 0
 
         # Poll the Ansible Tower instance for status, and print the status
         # to the outfile (usually standard out).
@@ -109,23 +111,33 @@ class Resource(models.BaseResource):
                 raise exc.JobFailure('Job failed.')
 
             # Print the current status.
-            output = '\rCurrent status: %s' % job['status']
+            output = '\rCurrent status: %s%s' % (job['status'], '.' * next(dots))
             if longest_string > len(output):
                 output += ' ' * (longest_string - len(output))
             else:
                 longest_string = len(output)
             click.secho(output, nl=False, file=outfile)
 
-            # Increment the interval and put the processor to sleep
-            # briefly.
-            interval = min(interval * 1.5, max_interval)
-            time.sleep(interval)
+            # Put the process to sleep briefly.
+            time.sleep(0.2)
 
-            # Ask the server for a new status.
-            job = self.status(pk)
+            # If enough time has elapsed, ask the server for a new status.
+            #
+            # Note that this doesn't actually do a status check every single
+            # time; we want the "spinner" to spin even if we're not actively
+            # doing a check.
+            #
+            # So, what happens is that we are "counting down" (actually up)
+            # to the next time that we intend to do a check, and once that
+            # time hits, we do the status check as part of the normal cycle.
+            if time.time() - last_poll > interval:
+                job = self.status(pk)
+                last_poll = time.time()
+                interval = min(interval * 1.5, max_interval)            
 
             # Wipe out the previous output
-            click.secho('\r' + ' ' * longest_string, file=outfile)
+            click.secho('\r' + ' ' * longest_string, file=outfile, nl=False)
+            click.secho('\r', file=outfile, nl=False)
 
         # Done; return the result
         return job

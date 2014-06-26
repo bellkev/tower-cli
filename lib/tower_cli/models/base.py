@@ -395,19 +395,23 @@ class Resource(BaseResource):
         # If `force_on_exists` is False and the record was, in fact, found,
         # then no action is required.
         if pk and not force_on_exists:
-            return OrderedDict((
+            answer = OrderedDict((
                 ('changed', False),
                 ('id', pk),
             ))
+            answer.update(existing_data)
+            return answer
 
         # Similarly, if all existing data matches our write parameters,
         # there's no need to do anything.
         if all([kwargs[k] == existing_data.get(k, None)
                 for k in kwargs.keys()]):
-            return OrderedDict((
+            answer = OrderedDict((
                 ('changed', False),
                 ('id', pk),
             ))
+            answer.update(existing_data)
+            return answer
 
         # Get the URL and method to use for the write.
         url = self.endpoint
@@ -426,10 +430,12 @@ class Resource(BaseResource):
 
         # At this point, we know the write succeeded, and we know that data
         # was changed in the process.
-        return OrderedDict((
+        answer = OrderedDict((
             ('changed', True),
             ('id', r.json()['id']),
         ))
+        answer.update(r.json())
+        return answer
 
     @cli_command(no_args_is_help=True)
     @click.option('--debug', default=False, is_flag=True,

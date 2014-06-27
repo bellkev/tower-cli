@@ -27,8 +27,12 @@ class Field(object):
                        filterable=True, help_text=None, is_option=True,
                        password=False, read_only=False, required=True,
                        show_default=False, unique=False):
-        self.name = ''  # Set by the ResourceMeta metaclass for each field
-                        # on a Resource.
+        # Init the name to blank.
+        # What's going on here: This is set by the ResourceMeta metaclass
+        # when the **resource** is instantiated.
+        # Essentially, in any normal situation, it's safe to expect it
+        # to be set and non-empty.
+        self.name = ''
 
         # Save properties of this field.
         self.key = key

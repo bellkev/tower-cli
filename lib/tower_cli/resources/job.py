@@ -26,6 +26,7 @@ import click
 from tower_cli import models, get_resource
 from tower_cli.api import client
 from tower_cli.resources import cli_command
+from tower_cli.utils import types
 
 
 class Resource(models.BaseResource):
@@ -39,7 +40,10 @@ class Resource(models.BaseResource):
 
     @cli_command
     @click.option('--job-template', type=int)
-    def launch(self, job_template):
+    @click.option('--no-input', is_flag=True, default=False,
+                                help='Suppress any requests for input.')
+    @click.option('--extra-vars', type=types.File('r'), required=False)
+    def launch(self, job_template, no_input=True, extra_vars=None):
         """Launch a new job based on a job template.
 
         Creates a new job in Ansible Tower, immediately stats it, and
@@ -54,7 +58,23 @@ class Resource(models.BaseResource):
         # and removing the ID.
         data = copy(jt)
         data.pop('id')
-        data['name'] = 'CLI Job Invocation: %s' % datetime.now()
+        data['name'] = '%s [invocated via. Tower CLI]' % data['name']
+
+        # If the job template requires prompting for extra variables,
+        # do so (unless --no-input is set).
+        if extra_vars:
+            data['extra_vars'] = extra_vars
+        elif data.pop('ask_variables_on_launch', False) and not no_input:
+            initial = data['extra_vars']
+            initial = '\n'.join((
+                '# Specify extra variables (if any) here.',
+                '# Lines beginning with "#" are ignored.',
+                initial,
+            ))
+            extra_vars = click.edit(initial)
+            extra_vars = '\n'.join([i for i in extra_vars.split('\n')
+                                            if not i.startswith('#')])
+            data['extra_vars'] = extra_vars
 
         # Create the new job in Ansible Tower.
         job = client.post('/jobs/', data=data).json()

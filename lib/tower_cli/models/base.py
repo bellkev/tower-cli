@@ -545,7 +545,7 @@ class Resource(BaseResource):
                   help='If used, and if options rather than a primary key are '
                        'used to attempt to match a record, will create the '
                        'record if it does not exist. This is an alias to '
-                       '`create --force-on-exists=true`.')
+                       '`create --force-on-exists`.')
     @click.option('--debug', default=False, is_flag=True,
                              help='Show debugging information.')
     def modify(self, pk=None, create_on_missing=False, **kwargs):

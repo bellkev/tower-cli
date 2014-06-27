@@ -26,10 +26,12 @@ class Resource(models.Resource):
     description = models.Field(required=False)
     organization = models.Field(type=int)
     scm_type = models.Field(
-        default='manual',
         type=click.Choice(['manual', 'git', 'hg', 'svn']),
     )
     scm_url = models.Field(required=False)
     scm_branch = models.Field(required=False)
     scm_credential = models.Field('credential', type=int, required=False)
+    scm_clean = models.Field(type=bool, required=False)
+    scm_delete_on_update = models.Field(type=bool, required=False)
+    scm_update_on_launch = models.Field(type=bool, required=False)
 

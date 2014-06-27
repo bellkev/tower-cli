@@ -97,14 +97,25 @@ class Client(Session):
         if r.status_code == 404:
             raise exc.NotFound('The requested object could not be found.')
 
+        # Sanity check: Did we get a 405 response?
+        # A 405 means we used a method that isn't allowed. Usually this
+        # is a bad request, but it requires special treatment because the
+        # API sends it as a logic error in a few situations (e.g. trying to
+        # cancel a job that isn't running).
+        if r.status_code == 405:
+            raise exc.MethodNotAllowed(
+                "The Tower server says you can't make a request with the "
+                "%s method to that URL (%s)." % (method, url),
+            )
+
         # Sanity check: Did we get some other kind of error?
         # If so, write an appropriate error message.
         if r.status_code >= 400:
             raise exc.BadRequest(
                 'The Tower server claims it was sent a bad request. '
                 'Please file a bug report in the Tower CLI project.\n\n'
-                'URL: %s\nData: %s\nResponse:%s' %
-                (url, kwargs.get('data', {}), r.content.decode('utf8'))
+                '%s %s\nData: %s\n\nResponse:%s' %
+                (method, url, kwargs.get('data', {}), r.content.decode('utf8'))
             )
 
         # Django REST Framework intelligently prints API keys in the

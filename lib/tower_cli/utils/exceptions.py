@@ -71,6 +71,13 @@ class NotFound(TowerCLIError):
     exit_code = 44
 
 
+class MethodNotAllowed(BadRequest):
+    """An exception class for sending a request to a URL where the URL doesn't
+    accept that method at all.
+    """
+    exit_code = 45
+
+
 class MultipleResults(TowerCLIError):
     """An exception class for reporting when a request that expected one
     and exactly one result got more than that.

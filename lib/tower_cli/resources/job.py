@@ -23,10 +23,12 @@ import time
 
 import click
 
+from sdict import adict
+
 from tower_cli import models, get_resource
 from tower_cli.api import client
 from tower_cli.resources import cli_command
-from tower_cli.utils import types
+from tower_cli.utils import exceptions as exc, types
 
 
 class Resource(models.BaseResource):
@@ -71,7 +73,7 @@ class Resource(models.BaseResource):
                 '# Lines beginning with "#" are ignored.',
                 initial,
             ))
-            extra_vars = click.edit(initial)
+            extra_vars = click.edit(initial) or ''
             extra_vars = '\n'.join([i for i in extra_vars.split('\n')
                                             if not i.startswith('#')])
             data['extra_vars'] = extra_vars
@@ -177,8 +179,31 @@ class Resource(models.BaseResource):
             return job
 
         # Print just the information we need.
-        return {
+        return adict({
             'elapsed': job['elapsed'],
             'failed': job['failed'],
             'status': job['status'],
-        }
+        })
+
+    @cli_command(no_args_is_help=True)
+    @click.option('--fail-if-not-running', is_flag=True, default=False,
+                  help='Fail loudly if the job is not currently running.')
+    def cancel(self, pk, fail_if_not_running=False):
+        """Cancel a currently running job.
+
+        Fails with a non-zero exit status if the job cannot be canceled.
+        """
+        # Get the job from Ansible Tower.
+        job = client.get('/jobs/%d/' % pk).json()
+
+        # Attempt to cancel the job.
+        try:
+            client.post('/jobs/%d/cancel/' % pk)
+            changed = True
+        except exc.MethodNotAllowed:
+            changed = False
+            if fail_if_not_running:
+                raise exc.TowerCLIError('Job not running.')
+
+        # Return a success.
+        return adict({'status': 'canceled', 'changed': changed})

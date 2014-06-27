@@ -21,6 +21,7 @@ class Resource(models.Resource):
     endpoint = '/users/'
 
     username = models.Field(unique=True)
+    password = models.Field(required=False)
     email = models.Field(unique=True)
     first_name = models.Field(required=False)
     last_name = models.Field(required=False)

@@ -17,6 +17,7 @@ import click
 
 from tower_cli import models
 from tower_cli.utils import exceptions as exc
+from tower_cli.utils import types
 
 
 class Resource(models.Resource):
@@ -28,15 +29,19 @@ class Resource(models.Resource):
 
     # Who owns this credential?
     owner = models.ImplicitField()
-    user = models.Field(type=int, required=False)
-    team = models.Field(type=int, required=False)
+    user = models.Field(
+        type=types.Related('user', criterion='username'),
+        required=False,
+    )
+    team = models.Field(
+        type=types.Related('team'),
+        required=False,
+    )
 
     # What type of credential is this (machine, SCM, etc.)?
     kind = models.Field(
-        default='ssh',
         help_text='The type of credential being added. '
                   'Valid options are: ssh, scm, aws, rax.',
-        show_default=True,
         type=click.Choice(['ssh', 'scm', 'aws', 'rax']),
     )
 

@@ -19,7 +19,7 @@ import click
 
 from tower_cli import models, get_resource
 from tower_cli.resources import cli_command
-from tower_cli.utils.types import MappedChoice
+from tower_cli.utils import types
 
 
 class Resource(models.Resource):
@@ -33,17 +33,22 @@ class Resource(models.Resource):
         show_default=True,
         type=click.Choice(['run', 'check']),
     )
-    inventory = models.Field(type=int)
-    project = models.Field(type=int)
+    inventory = models.Field(type=types.Related('inventory'))
+    project = models.Field(type=types.Related('project'))
     playbook = models.Field()
-    machine_credential = models.Field('credential', type=int)
-    cloud_credential = models.Field(type=int, required=False)
-    forks = models.Field(type=int, default=0, show_default=True)
+    machine_credential = models.Field('credential',
+        type=types.Related('credential'),
+    )
+    cloud_credential = models.Field(type=types.Related('credential'),
+                                    required=False)
+    forks = models.Field(type=int, required=False)
     limit = models.Field(required=False)
     verbosity = models.Field(
-        default='default',
-        show_default=True,
-        type=MappedChoice([(0, 'default'), (1, 'verbose'), (2, 'debug')]),
+        type=types.MappedChoice([
+            (0, 'default'),
+            (1, 'verbose'),
+            (2, 'debug'),
+        ]),
     )
     job_tags = models.Field(required=False)
     extra_vars = models.Field(type=models.File('r'), required=False)

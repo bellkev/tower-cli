@@ -14,6 +14,7 @@
 # limitations under the License.
 
 from tower_cli import models
+from tower_cli.utils import types
 
 
 class Resource(models.Resource):
@@ -22,6 +23,6 @@ class Resource(models.Resource):
 
     name = models.Field(unique=True)
     description = models.Field(required=False)
-    inventory = models.Field(type=int)
-    enabled = models.Field(type=bool, default=True, show_default=True)
-    variables = models.Field(type=models.File('r'), required=False)
+    inventory = models.Field(type=types.Related('inventory'))
+    enabled = models.Field(type=bool)
+    variables = models.Field(type=types.File('r'), required=False)

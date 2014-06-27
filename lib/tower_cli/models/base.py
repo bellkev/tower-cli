@@ -112,7 +112,7 @@ class BaseResource(six.with_metaclass(ResourceMeta)):
                     help=self.resource.cli_help,
                     **kwargs
                 )
-
+                
             def list_commands(self, ctx):
                 """Return a list of all methods decorated with the
                 @cli_command decorator.
@@ -533,8 +533,8 @@ class Resource(BaseResource):
         """Create an object.
 
         If unique fields exist and all unique fields are provided, and a match
-        is found, then no-op (unless `force_on_exists` is True) but do not
-        fail (unless `fail_on_found` is True).
+        is found, then no-op (unless `force_on_exists` is set) but do not
+        fail (unless `fail_on_found` is set).
         """
         return self.write(create_on_missing=True, fail_on_found=fail_on_found,
                           force_on_exists=force_on_exists, **kwargs)

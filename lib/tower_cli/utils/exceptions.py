@@ -99,6 +99,13 @@ class Found(TowerCLIError):
     exit_code = 60
 
 
+class RelatedError(TowerCLIError):
+    """An exception class for errors where we can't find related objects
+    that we expect to find.
+    """
+    exit_code = 61
+
+    
 class ValidationError(TowerCLIError):
     """An exception class for invalid values being sent as option
     switches to Tower CLI.

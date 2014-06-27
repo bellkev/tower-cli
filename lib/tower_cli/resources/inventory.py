@@ -14,6 +14,7 @@
 # limitations under the License.
 
 from tower_cli import models
+from tower_cli.utils import types
 
 
 class Resource(models.Resource):
@@ -22,5 +23,5 @@ class Resource(models.Resource):
 
     name = models.Field(unique=True)
     description = models.Field(required=False)
-    organization = models.Field(type=int)
+    organization = models.Field(type=types.Related('organization'))
     variables = models.Field(type=models.File('r'), required=False)

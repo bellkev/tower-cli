@@ -14,12 +14,13 @@
 # limitations under the License.
 
 from tower_cli import models
+from tower_cli.utils import types
 
 
 class Resource(models.Resource):
     cli_help = 'Manage teams within Ansible Tower.'
     endpoint = '/teams/'
 
-    name = models.Field(unique=True)  # FIXME: Should be unique together: name, org
-    organization = models.Field(type=int)
+    name = models.Field(unique=True)
+    organization = models.Field(type=types.Related('organization'))
     description = models.Field(required=False)

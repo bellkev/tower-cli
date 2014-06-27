@@ -16,6 +16,7 @@
 import click
 
 from tower_cli import models
+from tower_cli.utils import types
 
 
 class Resource(models.Resource):
@@ -24,13 +25,16 @@ class Resource(models.Resource):
 
     name = models.Field(unique=True)
     description = models.Field(required=False)
-    organization = models.Field(type=int)
+    organization = models.Field(type=types.Related('organization'))
     scm_type = models.Field(
         type=click.Choice(['manual', 'git', 'hg', 'svn']),
     )
     scm_url = models.Field(required=False)
     scm_branch = models.Field(required=False)
-    scm_credential = models.Field('credential', type=int, required=False)
+    scm_credential = models.Field('credential',
+        required=False,
+        type=types.Related('credential'),
+    )
     scm_clean = models.Field(type=bool, required=False)
     scm_delete_on_update = models.Field(type=bool, required=False)
     scm_update_on_launch = models.Field(type=bool, required=False)

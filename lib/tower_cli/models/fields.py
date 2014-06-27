@@ -90,30 +90,3 @@ class Field(object):
         (e.g. "--field-name").
         """
         return '--' + self.name.replace('_', '-')
-
-
-class ImplicitField(Field):
-    """A class representing a field that is determined based on values
-    provided to other fields, rather than being explicitly set.
-
-    Implicit fields are only calculated for `create` and `modify` commands.
-    """
-    def __init__(self, help_text=None, required=True):
-        self.determine_value = None
-        super(ImplicitField, self).__init__(help_text=help_text,
-                                            is_option=False, required=required)
-        self.implicit = True
-
-    def formula(self, method):
-        """Mark a function as being the formula for determining the value
-        of this field. That function will be sent a dictionary with the
-        data sent from the CLI.
-
-        This method is intended to be used as a decorator.
-        """
-        self.determine_value = method
-        return method
-
-    @property
-    def flags(self):
-        return 'implicit'

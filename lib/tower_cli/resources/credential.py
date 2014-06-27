@@ -28,7 +28,6 @@ class Resource(models.Resource):
     description = models.Field(required=False)
 
     # Who owns this credential?
-    owner = models.ImplicitField()
     user = models.Field(
         type=types.Related('user', criterion='username'),
         required=False,
@@ -68,22 +67,3 @@ class Resource(models.Resource):
 
     # Rackspace fields.
     api_key = models.Field(required=False)
-
-    @owner.formula
-    def determine_owner(self, data):
-        """Determine the owner value based on whether user or team have
-        been set.
-        """
-        # Sanity check: If both user and team are meaningfully set, then
-        # this is a validation error.
-        if data.get('user', None) and data.get('team', None):
-            raise exc.ValidationError('A credential may not be owned by both '
-                                      'a user and a team.')
-
-        # Return the owner value corresponding to the user or team key that
-        # is set, or None if neither is set.
-        if data.get('user', None):
-            return 'user'
-        if data.get('team', None):
-            return 'team'
-        return None

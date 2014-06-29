@@ -19,6 +19,7 @@ import tower_cli
 import tower_cli.common as common
 import datetime
 import getpass
+import time
 
 class JobLaunchCommand(BaseCommand.BaseCommand):
 
@@ -34,6 +35,12 @@ class JobLaunchCommand(BaseCommand.BaseCommand):
         parser = common.get_parser()
         parser.add_option('-t', '--template', dest='template', 
             default=None, type='int')
+        parser.add_option('-w', '--wait', dest='wait', action='store_true',
+            default=False)
+        parser.add_option('-i', '--poll-interval', dest='interval',
+            default=30, type='int')
+        parser.add_option('-m', '--max-poll-time', dest='timeout',
+            default=600, type='int')
         (options, args) = parser.parse_args()
         if options.template is None:
             raise common.BaseException("--template is required")
@@ -79,7 +86,23 @@ class JobLaunchCommand(BaseCommand.BaseCommand):
         job_start_result = handle.post(job_start_url, start_data)
         print common.dump(job_start_result) 
 
-        # TODO: optional status polling (FIXME)
+        # poll for completion if '--wait' is set
+        if options.wait:
+            job_detail_url = '/api/v1/jobs/%d/' % job_id
+            status = 'initialized'
+            start_time = time.time()
+            while status in ('initialized', 'pending', 'waiting', 'running'):
+                time_remaining = start_time + options.timeout - time.time()
+                if time_remaining < 0:
+                    raise BaseException('Timed out while waiting for the job')
+                else:
+                    print 'Status: %s\n Will wait for %d more seconds' % (status, time_remaining)
+                    time.sleep(options.interval)
+                status = handle.get(job_detail_url)['status']
+            if status == 'successful':
+                print 'Job completed successfully'
+            else:
+                raise BaseException('Job finished with status: %s' % status)
 
         return 0
 

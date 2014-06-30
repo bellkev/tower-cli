@@ -89,9 +89,9 @@ class JobLaunchCommand(BaseCommand.BaseCommand):
         # poll for completion if '--wait' is set
         if options.wait:
             job_detail_url = '/api/v1/jobs/%d/' % job_id
-            status = 'initialized'
+            status = 'unknown'
             start_time = time.time()
-            while status in ('initialized', 'pending', 'waiting', 'running'):
+            while status in ('unknown', 'new', 'pending', 'waiting', 'running'):
                 time_remaining = start_time + options.timeout - time.time()
                 if time_remaining < 0:
                     raise BaseException('Timed out while waiting for the job')
